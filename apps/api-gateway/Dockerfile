@@ -4,7 +4,6 @@ WORKDIR /usr/src/app
 
 COPY package.json ./
 COPY package-lock.json ./
-COPY prisma ./prisma/
 
 RUN npm install
 
@@ -19,10 +18,13 @@ ENV NODE_ENV=${NODE_ENV}
 
 WORKDIR /usr/src/app
 
+COPY package.json ./
+COPY package-lock.json ./
+
 RUN npm install --production
 
-COPY --from=development /usr/src/app/node_modules ./node_modules/
-COPY --from=development /usr/src/app/package*.json ./
-COPY --from=development /usr/src/app/prisma ./prisma/
+COPY --from=development /usr/src/app/dist ./dist
+COPY --from=builder /usr/src/app/node_modules ./node_modules
+COPY --from=builder /usr/src/app/package*.json ./
 
-CMD ["npx", "prisma", "migrate", "deploy"]
+CMD ["node", "dist/apps/api-gateway/main"]
