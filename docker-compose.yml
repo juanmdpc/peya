@@ -2,11 +2,12 @@ version: "3.7"
 
 services:
   postgres:
+    container_name: postgres
     image: postgres:14
     restart: always
     ports:
-      - "5432:5432"
-    env_file:
+      - '5432:5432'
+    environment:
       - .env
     volumes:
       - postgres-data:/var/lib/postgresql/data
@@ -16,8 +17,8 @@ services:
       context: .
       dockerfile: ./prisma/Dockerfile
       target: development
-    command: npx prisma generate
-    env_file:
+    command: npm run prisma:migrate:run && npm run prisma:generate
+    environment:
       - .env
     volumes:
       - .:/usr/src/app
@@ -54,6 +55,22 @@ services:
       - '3000:3000'
     volumes:
       - .:/usr/src/app
+
+  transactions:
+    build:
+      context: .
+      dockerfile: ./apps/transactions/Dockerfile
+      target: development
+    command: npm run start:dev transactions
+    env_file:
+      - ./apps/transactions/.env
+    ports:
+      - 3001:3001
+    volumes:
+      - .:/usr/src/app
+    depends_on:
+      kafka:
+        condition: service_completed_successfully
 
 volumes:
   postgres-data:
