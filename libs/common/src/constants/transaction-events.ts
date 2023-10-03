@@ -1,1 +1,2 @@
-export const CREATE_TRANSACTION = 'create_transaction';
+export const CREATE_TRANSACTION = 'CREATE_TRANSACTION';
+export const VALIDATE_TRANSACTION = 'VALIDATE_TRANSACTION';
