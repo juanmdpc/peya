@@ -24,7 +24,6 @@ import { TransactionService } from 'apps/api-gateway/src/transactions/transactio
               consumer: {
                 groupId: TRANSACTIONS_SERVICE,
               },
-              producerOnlyMode: true,
             },
           }),
           inject: [ConfigService],

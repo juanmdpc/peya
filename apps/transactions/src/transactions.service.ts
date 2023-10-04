@@ -22,10 +22,11 @@ export class TransactionsService {
     try {
       const transaction = await this.databaseService.transaction.create({
         data: { amount: input.amount, status: TransactionStatusEnum.PENDING },
-        select: { uuid: true, amount: true },
       });
 
       this.client.emit(VALIDATE_TRANSACTION, transaction);
+
+      return transaction;
     } catch (error) {
       throw new UnprocessableEntityException(error.message);
     }
