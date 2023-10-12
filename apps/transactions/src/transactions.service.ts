@@ -1,4 +1,4 @@
-import { DatabaseService } from '@app/common';
+import { CacheService, DatabaseService } from '@app/common';
 import { ANTI_FRAUD_SERVICE } from '@app/common/constants/service-names';
 import { VALIDATE_TRANSACTION } from '@app/common/constants/transaction-events';
 import { VerifiedTransactionDto } from '@app/common/dtos/requests/verified-transaction.dto';
@@ -9,16 +9,19 @@ import {
 } from '@nestjs/common';
 import { ClientKafka } from '@nestjs/microservices';
 import { CreateTransactionDto } from 'apps/api-gateway/src/transactions/dtos/requests/create-transaction.dto';
+import { GetTransactionDto } from 'apps/api-gateway/src/transactions/dtos/requests/get-transaction.dto';
+import { TransactionDto } from 'apps/api-gateway/src/transactions/dtos/responses/transaction.dto';
 import { TransactionStatusEnum } from 'apps/api-gateway/src/transactions/enums/transaction.enum';
 
 @Injectable()
 export class TransactionsService {
   constructor(
     @Inject(ANTI_FRAUD_SERVICE) private readonly client: ClientKafka,
+    private readonly cacheService: CacheService,
     private readonly databaseService: DatabaseService,
   ) {}
 
-  async create(input: CreateTransactionDto) {
+  async create(input: CreateTransactionDto): Promise<TransactionDto> {
     try {
       const transaction = await this.databaseService.transaction.create({
         data: { amount: input.amount, status: TransactionStatusEnum.PENDING },
@@ -26,18 +29,48 @@ export class TransactionsService {
 
       this.client.emit(VALIDATE_TRANSACTION, transaction);
 
-      return transaction;
+      return {
+        uuid: transaction.uuid,
+        amount: transaction.amount,
+        status: TransactionStatusEnum[transaction.status],
+        createdAt: transaction.createdAt,
+      };
     } catch (error) {
       throw new UnprocessableEntityException(error.message);
     }
   }
 
+  async getOne({ uuid }: GetTransactionDto): Promise<TransactionDto> {
+    const cachedTransaction = (await this.cacheService.getOne(
+      uuid,
+    )) as TransactionDto;
+
+    if (cachedTransaction) {
+      return cachedTransaction;
+    }
+
+    const transaction = await this.databaseService.transaction.findFirstOrThrow(
+      { where: { uuid } },
+    );
+
+    await this.cacheService.create(uuid, transaction);
+
+    return {
+      uuid: transaction.uuid,
+      amount: transaction.amount,
+      status: TransactionStatusEnum[transaction.status],
+      createdAt: transaction.createdAt,
+    };
+  }
+
   async updateStatus({ uuid, status }: VerifiedTransactionDto) {
     try {
-      await this.databaseService.transaction.update({
+      const transaction = await this.databaseService.transaction.update({
         where: { uuid },
         data: { status },
       });
+
+      await this.cacheService.update(uuid, transaction);
     } catch (error) {
       throw new UnprocessableEntityException(error.message);
     }

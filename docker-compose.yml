@@ -7,7 +7,7 @@ services:
     restart: always
     ports:
       - '5432:5432'
-    environment:
+    env_file:
       - .env
     volumes:
       - postgres-data:/var/lib/postgresql/data
@@ -18,7 +18,7 @@ services:
       dockerfile: ./prisma/Dockerfile
       target: development
     command: npm run prisma:migrate:run && npm run prisma:generate
-    environment:
+    env_file:
       - .env
     volumes:
       - .:/usr/src/app
